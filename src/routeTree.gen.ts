@@ -23,6 +23,7 @@ import { Route as AuthenticatedWebRouteImport } from './routes/_authenticated/we
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiMoviesRouteImport } from './routes/api/movies'
 import { Route as ApiMusicRouteImport } from './routes/api/music'
+import { Route as ApiMusicAiRouteImport } from './routes/api/music-ai'
 import { Route as ApiProxyRouteImport } from './routes/api/proxy'
 import { Route as ApiSpeechRouteImport } from './routes/api/speech'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -105,6 +106,11 @@ const ApiMoviesRoute = ApiMoviesRouteImport.update({
 const ApiMusicRoute = ApiMusicRouteImport.update({
   id: '/api/music',
   path: '/api/music',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMusicAiRoute = ApiMusicAiRouteImport.update({
+  id: '/api/music-ai',
+  path: '/api/music-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProxyRoute = ApiProxyRouteImport.update({
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/music': typeof ApiMusicRoute
+  '/api/music-ai': typeof ApiMusicAiRoute
   '/api/proxy': typeof ApiProxyRoute
   '/api/speech': typeof ApiSpeechRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/music': typeof ApiMusicRoute
+  '/api/music-ai': typeof ApiMusicAiRoute
   '/api/proxy': typeof ApiProxyRoute
   '/api/speech': typeof ApiSpeechRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/movies': typeof ApiMoviesRoute
   '/api/music': typeof ApiMusicRoute
+  '/api/music-ai': typeof ApiMusicAiRoute
   '/api/proxy': typeof ApiProxyRoute
   '/api/speech': typeof ApiSpeechRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/movies'
     | '/api/music'
+    | '/api/music-ai'
     | '/api/proxy'
     | '/api/speech'
     | '/api/transcribe'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/movies'
     | '/api/music'
+    | '/api/music-ai'
     | '/api/proxy'
     | '/api/speech'
     | '/api/transcribe'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/movies'
     | '/api/music'
+    | '/api/music-ai'
     | '/api/proxy'
     | '/api/speech'
     | '/api/transcribe'
@@ -372,6 +384,7 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiMoviesRoute: typeof ApiMoviesRoute
   ApiMusicRoute: typeof ApiMusicRoute
+  ApiMusicAiRoute: typeof ApiMusicAiRoute
   ApiProxyRoute: typeof ApiProxyRoute
   ApiSpeechRoute: typeof ApiSpeechRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -478,6 +491,13 @@ declare module '@tanstack/react-router' {
       path: '/api/music'
       fullPath: '/api/music'
       preLoaderRoute: typeof ApiMusicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/music-ai': {
+      id: '/api/music-ai'
+      path: '/api/music-ai'
+      fullPath: '/api/music-ai'
+      preLoaderRoute: typeof ApiMusicAiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/proxy': {
@@ -629,6 +649,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiMoviesRoute: ApiMoviesRoute,
   ApiMusicRoute: ApiMusicRoute,
+  ApiMusicAiRoute: ApiMusicAiRoute,
   ApiProxyRoute: ApiProxyRoute,
   ApiSpeechRoute: ApiSpeechRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
