@@ -57,6 +57,8 @@ async function handle(request: Request) {
     if (typeof k !== "string" || typeof v !== "string" || DROP_REQ.has(k.toLowerCase())) continue;
     try { headers.set(k, v); } catch { /* invalid header */ }
   }
+  // YouTube embeds refuse to play ("configuration error") without a referring site.
+  if (/(^|\.)youtube(-nocookie)?\.com$/i.test(url.hostname)) headers.set("referer", "https://www.google.com/");
   const body = method === "GET" || method === "HEAD" || !reqBody?.length ? null : reqBody.slice().buffer;
 
   let upstream: Response;
