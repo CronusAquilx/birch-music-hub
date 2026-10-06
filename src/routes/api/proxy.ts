@@ -29,20 +29,33 @@ async function authorized(request: Request) {
 
 async function handle(request: Request) {
   if (!(await authorized(request))) return new Response("Unauthorized", { status: 401 });
-  const target = request.headers.get("x-astra-url");
-  const method = (request.headers.get("x-astra-method") || "GET").toUpperCase();
+  // Framed request: [4-byte meta length][JSON meta][body]. Avoids header-size limits
+  // (big cookies / header lists made many page files fail to load).
+  const buf = new Uint8Array(await request.arrayBuffer());
+  let meta: { url?: string; method?: string; headers?: [string, string][] } = {};
+  let reqBody: Uint8Array | null = null;
+  if (request.headers.get("x-astra-framed") === "1" && buf.length >= 4) {
+    const len = new DataView(buf.buffer, buf.byteOffset, 4).getUint32(0);
+    try { meta = JSON.parse(new TextDecoder().decode(buf.subarray(4, 4 + len))); } catch { /* ignore */ }
+    reqBody = buf.subarray(4 + len);
+  } else {
+    meta = { url: request.headers.get("x-astra-url") ?? "", method: request.headers.get("x-astra-method") ?? "GET" };
+    try { meta.headers = JSON.parse(decodeURIComponent(request.headers.get("x-astra-headers") || "%5B%5D")); } catch { /* ignore */ }
+    reqBody = buf;
+  }
+  const target = meta.url;
+  const method = (meta.method || "GET").toUpperCase();
   let url: URL;
   try { url = new URL(target ?? ""); } catch { return new Response("Bad url", { status: 400 }); }
   if (!/^https?:$/.test(url.protocol) || blockedHost(url.hostname)) return new Response("Blocked url", { status: 400 });
 
-  let raw: [string, string][] = [];
-  try { raw = JSON.parse(decodeURIComponent(request.headers.get("x-astra-headers") || "%5B%5D")); } catch { /* ignore */ }
+  const raw: [string, string][] = Array.isArray(meta.headers) ? meta.headers : [];
   const headers = new Headers({ "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36", "accept-language": "en-US,en;q=0.9" });
   for (const [k, v] of raw) {
     if (typeof k !== "string" || typeof v !== "string" || DROP_REQ.has(k.toLowerCase())) continue;
     try { headers.set(k, v); } catch { /* invalid header */ }
   }
-  const body = method === "GET" || method === "HEAD" ? null : await request.arrayBuffer();
+  const body = method === "GET" || method === "HEAD" || !reqBody?.length ? null : reqBody;
 
   let upstream: Response;
   try {
@@ -55,15 +68,23 @@ async function handle(request: Request) {
   upstream.headers.forEach((v, k) => { if (k !== "set-cookie" && !DROP_RES.has(k)) out.push([k, v]); });
   for (const c of upstream.headers.getSetCookie?.() ?? []) out.push(["set-cookie", c]);
 
-  return new Response(NULL_BODY.has(upstream.status) || method === "HEAD" ? null : upstream.body, {
-    status: 200,
-    headers: {
-      "x-astra-status": String(upstream.status),
-      "x-astra-status-text": encodeURIComponent(upstream.statusText || ""),
-      "x-astra-headers": encodeURIComponent(JSON.stringify(out)),
-      "cache-control": "no-store",
+  // Framed response: [4-byte meta length][JSON meta][body stream].
+  const metaBytes = new TextEncoder().encode(JSON.stringify({ status: upstream.status, statusText: upstream.statusText || "", headers: out }));
+  const head = new Uint8Array(4 + metaBytes.length);
+  new DataView(head.buffer).setUint32(0, metaBytes.length);
+  head.set(metaBytes, 4);
+  const upBody = NULL_BODY.has(upstream.status) || method === "HEAD" ? null : upstream.body;
+  const stream = new ReadableStream<Uint8Array>({
+    async start(c) {
+      c.enqueue(head);
+      if (upBody) {
+        const r = upBody.getReader();
+        try { for (;;) { const { done, value } = await r.read(); if (done) break; c.enqueue(value); } } catch (e) { c.error(e); return; }
+      }
+      c.close();
     },
   });
+  return new Response(stream, { status: 200, headers: { "x-astra-status": "framed", "content-type": "application/octet-stream", "cache-control": "no-store" } });
 }
 
 export const Route = createFileRoute("/api/proxy")({
