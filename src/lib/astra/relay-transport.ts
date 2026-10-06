@@ -14,32 +14,45 @@ export class AstraRelayTransport {
   async request(remote: URL, method: string, body: BodyInit | null, headers: RawHeaders, signal: AbortSignal | undefined) {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token ?? "";
-    const payload = body == null || method === "GET" || method === "HEAD" ? null : await new Response(body).arrayBuffer();
+    const payload = body == null || method === "GET" || method === "HEAD" ? new Uint8Array(0) : new Uint8Array(await new Response(body).arrayBuffer());
+    const meta = new TextEncoder().encode(JSON.stringify({ url: remote.href, method, headers: Array.isArray(headers) ? headers : Object.entries(headers ?? {}) }));
+    const framed = new Uint8Array(4 + meta.length + payload.length);
+    new DataView(framed.buffer).setUint32(0, meta.length);
+    framed.set(meta, 4);
+    framed.set(payload, 4 + meta.length);
     const res = await fetch("/api/proxy", {
       method: "POST",
       signal: signal ?? null,
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-astra-url": remote.href,
-        "x-astra-method": method,
-        "x-astra-headers": encodeURIComponent(JSON.stringify(headers ?? [])),
-        "content-type": "application/octet-stream",
-      },
-      body: payload,
+      headers: { authorization: `Bearer ${token}`, "x-astra-framed": "1", "content-type": "application/octet-stream" },
+      body: framed,
     });
-    const statusHeader = res.headers.get("x-astra-status");
-    if (!statusHeader) {
+    if (res.headers.get("x-astra-status") !== "framed" || !res.body) {
       const text = await res.text().catch(() => "");
       throw new Error(`Astra relay error ${res.status}: ${text.slice(0, 200)}`);
     }
-    const status = Number(statusHeader);
-    let outHeaders: RawHeaders = [];
-    try { outHeaders = JSON.parse(decodeURIComponent(res.headers.get("x-astra-headers") || "%5B%5D")); } catch { /* ignore */ }
+    // Read the metadata prefix, then pass the rest through as the page body.
+    const reader = res.body.getReader();
+    let buf = new Uint8Array(0);
+    const pull = async () => {
+      const { done, value } = await reader.read();
+      if (done) throw new Error("Astra relay closed early");
+      const n = new Uint8Array(buf.length + value.length); n.set(buf); n.set(value, buf.length); buf = n;
+    };
+    while (buf.length < 4) await pull();
+    const len = new DataView(buf.buffer).getUint32(0);
+    while (buf.length < 4 + len) await pull();
+    const info = JSON.parse(new TextDecoder().decode(buf.subarray(4, 4 + len))) as { status: number; statusText: string; headers: RawHeaders };
+    const rest = buf.slice(4 + len);
+    const stream = new ReadableStream<Uint8Array>({
+      start(c) { if (rest.length) c.enqueue(rest); },
+      async pull(c) { const { done, value } = await reader.read(); if (done) c.close(); else c.enqueue(value); },
+      cancel() { void reader.cancel(); },
+    });
     return {
-      body: (NULL_BODY.has(status) ? null : res.body ?? new ArrayBuffer(0)) as ReadableStream,
-      headers: outHeaders,
-      status,
-      statusText: decodeURIComponent(res.headers.get("x-astra-status-text") || ""),
+      body: (NULL_BODY.has(info.status) ? null : stream) as ReadableStream,
+      headers: info.headers ?? [],
+      status: info.status,
+      statusText: info.statusText,
     };
   }
 
