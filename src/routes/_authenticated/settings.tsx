@@ -214,6 +214,16 @@ function Appearance({ p, set }: { p: Prefs; set: (x: Partial<Prefs>) => void }) 
   }
   return (
     <>
+      <Card title="What you use BirchBlock for">
+        <Row title="Focus">
+          <div className="flex flex-wrap gap-2">
+            {(["all", "music", "movies", "web", "games", "ai"] as const).map((f) => (
+              <button key={f} onClick={() => set({ focus: f })} className={cn("rounded-md border px-3 py-1.5 text-sm capitalize", (p.focus || "all") === f ? "border-star bg-accent" : "hover:bg-accent/50")}>{f === "ai" ? "AI" : f === "web" ? "Web proxy" : f}</button>
+            ))}
+          </div>
+        </Row>
+      </Card>
+      <BackgroundCard />
       <Card title="Theme">
         <Row title="Mode">
           <div className="inline-flex rounded-md border p-0.5">
@@ -327,5 +337,47 @@ function AISettings() {
         ))}
       </Card>
     </>
+  );
+}
+
+function BackgroundCard() {
+  const p = usePrefs();
+  const [busy, setBusy] = useState(false);
+  async function upload(file: File) {
+    if (!file.type.startsWith("image/")) { toast.error("Pick an image file"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10 MB"); return; }
+    setBusy(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sign in again");
+      const path = `${u.user.id}/bg-${Date.now()}.${file.name.split(".").pop() || "jpg"}`;
+      const { error } = await supabase.storage.from("backgrounds").upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data: signed, error: e2 } = await supabase.storage.from("backgrounds").createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (e2 || !signed) throw e2 ?? new Error("Couldn't get link");
+      setPrefs({ customBg: signed.signedUrl });
+      await supabase.from("profiles").update({ background_url: path }).eq("id", u.user.id);
+      toast.success("Background set");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed"); }
+    setBusy(false);
+  }
+  return (
+    <Card title="Custom background">
+      <Row title="Image">
+        <div className="flex flex-wrap items-center gap-3">
+          {p.customBg && <img src={p.customBg} alt="" className="h-14 w-24 rounded-md border object-cover" />}
+          <label className="cursor-pointer rounded-md border px-3 py-1.5 text-sm hover:bg-accent">
+            {busy ? "Uploading…" : p.customBg ? "Change image" : "Import image"}
+            <input type="file" accept="image/*" className="hidden" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+          </label>
+          {p.customBg && <button onClick={() => setPrefs({ customBg: "" })} className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Remove</button>}
+        </div>
+      </Row>
+      {p.customBg && (
+        <Row title="Darken">
+          <div className="w-48"><Slider value={[p.customBgDim]} min={0} max={90} step={5} onValueChange={(v) => setPrefs({ customBgDim: v[0] ?? 55 })} /></div>
+        </Row>
+      )}
+    </Card>
   );
 }

@@ -20,3 +20,6 @@
 
 - Movies tab: TMDB data and posters go through the `/api/movies` relay route so browsers only contact the app domain; it authenticates via bearer header or `?token=` (iframes/images cannot set headers), streaming-source players load directly (user asked sources not to be proxied).
 - Music traffic (iTunes catalog, artwork, lyrics, YouTube lookups) goes through the authenticated `/api/music` relay, playback loads in the scramjet proxy frame, and catalog comes from Deezer via the relay.
+- The music player is an app-wide singleton (`src/lib/music/player.ts`, audio element + hidden YouTube frame appended to body) with `NowPlayingBar` in `AppShell`, so playback survives page changes; song matching scores candidates against Deezer title/artist/duration to prefer original recordings.
+- User playlists live in the `playlists` table (tracks as jsonb); the AI DJ is the authenticated `/api/music-ai` route (hosted model → "Artist - Title" lines → Deezer lookups).
+- The first-login focus choice (`prefs.focus`, mirrored to `profiles.focus`) hides other sections in `AppShell`; custom backgrounds upload to the private `backgrounds` bucket and are shown via a long-lived signed URL.
