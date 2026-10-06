@@ -66,6 +66,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [prefs.tabCloak, prefs.cloakTitle]);
 
   const launcher = prefs.layout === "launcher";
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => {
+    const f = prefs.focus;
+    if (!f || f === "all") return;
+    const sec = /^\/(chat|voice|memory)/.test(path) ? "ai" : /^\/web/.test(path) ? "web" : /^\/movies/.test(path) ? "movies" : /^\/music/.test(path) ? "music" : /^\/games/.test(path) ? "games" : /^\/home/.test(path) ? "home" : null;
+    if (sec && sec !== f) navigate({ to: ({ ai: "/chat", web: "/web", movies: "/movies", music: "/music", games: "/games" } as const)[f], replace: true });
+  }, [prefs.focus, path, navigate]);
 
   return (
     <ShellCtx.Provider value={{ openMenu: () => setMobileOpen(true), openCommand: () => setCmdOpen(true) }}>
@@ -197,14 +204,14 @@ function SidebarBody({ onNavigate, onSearch }: { onNavigate: () => void; onSearc
         </Link>
       </div>
       <div className="space-y-1 px-2">
-        <Link
+        {shows("ai") && <Link
           to="/chat"
           onClick={onNavigate}
           className="flex items-center gap-2 rounded-md border border-sidebar-border px-3 py-2 text-sm hover:bg-sidebar-accent"
         >
           <Plus className="size-4" /> New chat
           <kbd className="ml-auto label-mono">⇧⌘O</kbd>
-        </Link>
+        </Link>}
         <button onClick={onSearch} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent">
           <Search className="size-4" /> Search
           <kbd className="ml-auto label-mono">⌘K</kbd>
