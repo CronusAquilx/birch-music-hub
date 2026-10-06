@@ -3,7 +3,10 @@ import { useSyncExternalStore } from "react";
 export type Prefs = {
   layout: "classic" | "launcher";
   accent: "star" | "rose" | "ember" | "mint" | "sky" | "violet" | "lime" | "gold" | "coral" | "aqua";
-  palette: "default" | "midnight" | "forest" | "ocean" | "sunset" | "mono" | "candy" | "dracula";
+  palette: "default" | "midnight" | "forest" | "ocean" | "sunset" | "mono" | "candy" | "dracula" | "nord" | "cyberpunk" | "coffee" | "sakura" | "matrix" | "arctic" | "lava" | "royal" | "synthwave" | "paper" | "mint" | "galaxy";
+  focus: "" | "all" | "music" | "movies" | "web" | "games" | "ai";
+  customBg: string;
+  customBgDim: number;
   v?: number;
   density: "compact" | "comfortable";
   fontScale: number;
@@ -30,6 +33,9 @@ export type Prefs = {
 
 export const DEFAULT_PREFS: Prefs = {
   layout: "classic",
+  focus: "",
+  customBg: "",
+  customBgDim: 55,
   accent: "star",
   palette: "default",
   density: "comfortable",
@@ -77,6 +83,18 @@ export const PALETTES: Record<Prefs["palette"], { name: string; swatch: string[]
   mono: { name: "Mono", swatch: ["#111111", "#f2f2f2"] },
   candy: { name: "Candy", swatch: ["#fff0f6", "#e64e9b"] },
   dracula: { name: "Dracula", swatch: ["#1e1b2e", "#c49bff"] },
+  nord: { name: "Nord", swatch: ["#2e3440", "#88c0d0"] },
+  cyberpunk: { name: "Cyberpunk", swatch: ["#0d0221", "#f9f002"] },
+  coffee: { name: "Coffee", swatch: ["#1e1612", "#d4a373"] },
+  sakura: { name: "Sakura", swatch: ["#fdf2f4", "#e07a9a"] },
+  matrix: { name: "Matrix", swatch: ["#030a05", "#39ff6a"] },
+  arctic: { name: "Arctic", swatch: ["#f4f8fb", "#2b8fd6"] },
+  lava: { name: "Lava", swatch: ["#140705", "#ff4d1f"] },
+  royal: { name: "Royal", swatch: ["#0e0f2b", "#e8c25a"] },
+  synthwave: { name: "Synthwave", swatch: ["#1a0b2e", "#ff4fd8"] },
+  paper: { name: "Paper", swatch: ["#f5f1e8", "#3b3a36"] },
+  mint: { name: "Mint", swatch: ["#0d1f1c", "#5fe3c0"] },
+  galaxy: { name: "Galaxy", swatch: ["#070b1f", "#9d7bff"] },
 };
 
 const KEY = "astra-prefs";
@@ -110,6 +128,8 @@ function apply() {
   r.dataset["bg"] = state.background;
   if (state.palette === "default") delete r.dataset["theme"]; else r.dataset["theme"] = state.palette;
   r.dataset["density"] = state.density;
+  if (state.customBg) { r.style.setProperty("--custom-bg", `url("${state.customBg.replace(/"/g, "%22")}")`); r.style.setProperty("--custom-bg-dim", `${state.customBgDim}%`); r.dataset["custombg"] = "on"; }
+  else { r.style.removeProperty("--custom-bg"); delete r.dataset["custombg"]; }
   r.classList.toggle("reduce-motion", state.reduceMotion);
   document.title = state.tabCloak ? state.cloakTitle : document.title;
 }
