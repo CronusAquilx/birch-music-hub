@@ -73,7 +73,12 @@ async function handle(request: Request) {
   const head = new Uint8Array(4 + metaBytes.length);
   new DataView(head.buffer).setUint32(0, metaBytes.length);
   head.set(metaBytes, 4);
-  const upBody = NULL_BODY.has(upstream.status) || method === "HEAD" ? null : upstream.body;
+  let upBody: ReadableStream<Uint8Array> | null = NULL_BODY.has(upstream.status) || method === "HEAD" ? null : upstream.body;
+  // The proxy rewrites scripts/styles, so integrity hashes would block them (Discord loads unstyled).
+  if (upBody && /text\/html/i.test(upstream.headers.get("content-type") ?? "")) {
+    const html = (await upstream.text()).replace(/\s(integrity|nonce)=("[^"]*"|'[^']*')/gi, "");
+    upBody = new Response(html).body;
+  }
   const stream = new ReadableStream<Uint8Array>({
     async start(c) {
       c.enqueue(head);
