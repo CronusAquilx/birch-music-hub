@@ -1,5 +1,7 @@
 import { Link, useNavigate, useParams, useRouter, useRouterState } from "@tanstack/react-router";
 import { RoomFollower } from "@/components/RoomFollower";
+import { NowPlayingBar } from "@/components/music/NowPlayingBar";
+import { FocusPrompt } from "@/components/FocusPrompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Bot, Brain, Film, Gamepad2, Globe, AudioLines, Home, Lock, LogOut, Maximize, Music, Shield, Menu, MessageSquare, Plus, RotateCw, Search, Settings, Trash2 } from "lucide-react";
@@ -90,36 +92,44 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="flex min-w-0 flex-1 flex-col">
           {launcher && <TopBar />}
           <div className="min-h-0 flex-1"><RoomFollower />{children}</div>
+          <NowPlayingBar />
         </main>
       </div>
+      {prefs.focus === "" && <FocusPrompt />}
       <CommandMenu open={cmdOpen} onOpenChange={setCmdOpen} />
     </ShellCtx.Provider>
   );
 }
 
 const RAIL = [
-  { to: "/home", label: "Home", icon: Home },
-  { to: "/chat", label: "AI", icon: Bot },
-  { to: "/voice", label: "Voice", icon: AudioLines },
-  { to: "/web", label: "Web", icon: Globe },
-  { to: "/movies", label: "Movies", icon: Film },
-  { to: "/music", label: "Music", icon: Music },
-  { to: "/games", label: "Games", icon: Gamepad2 },
+  { to: "/home", label: "Home", icon: Home, f: "all" },
+  { to: "/chat", label: "AI", icon: Bot, f: "ai" },
+  { to: "/voice", label: "Voice", icon: AudioLines, f: "ai" },
+  { to: "/web", label: "Web", icon: Globe, f: "web" },
+  { to: "/movies", label: "Movies", icon: Film, f: "movies" },
+  { to: "/music", label: "Music", icon: Music, f: "music" },
+  { to: "/games", label: "Games", icon: Gamepad2, f: "games" },
 ] as const;
+/** Whether a section shows for the chosen focus ("all" or unset shows everything). */
+export function useShows() {
+  const { focus } = usePrefs();
+  return (f: string) => !focus || focus === "all" || focus === f;
+}
 
 function IconRail({ onSearch }: { onSearch: () => void }) {
   const railLink = "flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground";
   const active = { className: "bg-sidebar-accent text-star" };
+  const shows = useShows();
   return (
     <aside className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar py-3 md:flex">
-      {RAIL.map((r) => (
+      {RAIL.filter((r) => shows(r.f)).map((r) => (
         <Link key={r.to} to={r.to} title={r.label} aria-label={r.label} className={railLink} activeProps={active}>
           <r.icon className="size-4" />
         </Link>
       ))}
       <button onClick={onSearch} title="Search" aria-label="Search" className={railLink}><Search className="size-4" /></button>
       <div className="mt-auto flex flex-col items-center gap-1 border-t border-sidebar-border pt-2">
-        <Link to="/memory" title="Memory" aria-label="Memory" className={railLink} activeProps={active}><Brain className="size-4" /></Link>
+        {shows("ai") && <Link to="/memory" title="Memory" aria-label="Memory" className={railLink} activeProps={active}><Brain className="size-4" /></Link>}
         <Link to="/settings" title="Settings" aria-label="Settings" className={railLink} activeProps={active}><Settings className="size-4" /></Link>
         <button onClick={() => supabase.auth.signOut()} title="Sign out" aria-label="Sign out" className={railLink}><LogOut className="size-4" /></button>
       </div>
@@ -170,6 +180,7 @@ function SidebarBody({ onNavigate, onSearch }: { onNavigate: () => void; onSearc
   const params = useParams({ strict: false }) as { threadId?: string };
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const shows = useShows();
 
   async function remove(id: string) {
     const { error } = await supabase.from("threads").delete().eq("id", id);
@@ -200,15 +211,15 @@ function SidebarBody({ onNavigate, onSearch }: { onNavigate: () => void; onSearc
         </button>
       </div>
       <div className="mt-4 space-y-0.5 px-2">
-        <Link to="/home" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Home className="size-4" /> Home</Link>
-        <Link to="/voice" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><AudioLines className="size-4" /> Voice</Link>
-        <Link to="/web" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Globe className="size-4" /> Web</Link>
-        <Link to="/movies" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Film className="size-4" /> Movies</Link>
-        <Link to="/music" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Music className="size-4" /> Music</Link>
-        <Link to="/games" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Gamepad2 className="size-4" /> Games</Link>
+        {shows("all") && <Link to="/home" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Home className="size-4" /> Home</Link>}
+        {shows("ai") && <Link to="/voice" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><AudioLines className="size-4" /> Voice</Link>}
+        {shows("web") && <Link to="/web" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Globe className="size-4" /> Web</Link>}
+        {shows("movies") && <Link to="/movies" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Film className="size-4" /> Movies</Link>}
+        {shows("music") && <Link to="/music" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Music className="size-4" /> Music</Link>}
+        {shows("games") && <Link to="/games" onClick={onNavigate} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent" activeProps={{ className: "bg-sidebar-accent" }}><Gamepad2 className="size-4" /> Games</Link>}
       </div>
-      <div className="mt-5 px-4 label-mono">AI Chats</div>
-      <nav className="mt-1 flex-1 overflow-y-auto px-2 pb-2">
+      <div className={cn("mt-5 px-4 label-mono", !shows("ai") && "hidden")}>AI Chats</div>
+      <nav className={cn("mt-1 flex-1 overflow-y-auto px-2 pb-2", !shows("ai") && "invisible")}>
         {threads?.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">No chats yet.</p>}
         {threads?.map((t) => (
           <div
