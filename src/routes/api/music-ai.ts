@@ -17,7 +17,7 @@ async function handle({ request }: { request: Request }) {
   try {
     const result = streamText({
       model: p.model,
-      providerOptions: p.providerOptions,
+      providerOptions: p.providerOptions ?? {},
       system:
         "You are a music curator. Only suggest real, released songs that exist on major streaming services, using their exact official titles and primary artist. " +
         "Output format: first line is 'NAME: <short catchy playlist name>'. Then one song per line as 'Artist - Title'. No numbering, no commentary.",

@@ -344,8 +344,8 @@ function BackgroundCard() {
   const p = usePrefs();
   const [busy, setBusy] = useState(false);
   async function upload(file: File) {
-    if (!file.type.startsWith("image/")) return toast.error("Pick an image file");
-    if (file.size > 10 * 1024 * 1024) return toast.error("Image must be under 10 MB");
+    if (!file.type.startsWith("image/")) { toast.error("Pick an image file"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10 MB"); return; }
     setBusy(true);
     try {
       const { data: u } = await supabase.auth.getUser();

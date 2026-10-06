@@ -121,7 +121,7 @@ function Music() {
     await loadMine();
   }
   async function addTo(pl: Mine, t: Track) {
-    if (pl.tracks.some((x) => x.id === t.id)) return toast("Already in " + pl.name);
+    if (pl.tracks.some((x) => x.id === t.id)) { toast("Already in " + pl.name); return; }
     await saveTracks(pl.id, [...pl.tracks, t]);
     toast.success(`Added to ${pl.name}`);
   }
@@ -201,7 +201,7 @@ function Music() {
       {list.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted-foreground">No songs yet.</li>}
     </ol>
   );
-  const Card = ({ art, title, sub, onClick, round }: { art: string; title: string; sub?: string; onClick: () => void; round?: boolean }) => (
+  const Card = ({ art, title, sub, onClick, round }: { art: string; title: string; sub?: string | undefined; onClick: () => void; round?: boolean }) => (
     <button onClick={onClick} className="music-card group w-36 shrink-0 text-left sm:w-40">
       <div className={cn("relative aspect-square overflow-hidden bg-muted shadow-md", round ? "rounded-full" : "rounded-xl")}>
         {art ? <img src={artUrl(art)} alt="" loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="music-gradient grid size-full place-items-center"><Music2 className="size-8 opacity-70" /></div>}
@@ -213,7 +213,7 @@ function Music() {
   );
   const Row = ({ children }: { children: React.ReactNode }) => <div className="mt-3 flex gap-4 overflow-x-auto pb-3">{children}</div>;
   const H = ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) => <div className="mt-9 flex items-end justify-between"><h2 className="font-display text-2xl">{children}</h2>{action}</div>;
-  const Hero = ({ art, label, title, sub, tracks, round, extra }: { art?: string; label: string; title: string; sub: string; tracks: Track[]; round?: boolean; extra?: React.ReactNode }) => (
+  const Hero = ({ art, label, title, sub, tracks, round, extra }: { art?: string | undefined; label: string; title: string; sub: string; tracks: Track[]; round?: boolean; extra?: React.ReactNode }) => (
     <div className="music-hero relative overflow-hidden rounded-2xl p-5 sm:p-7">
       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end">
         <div className={cn("size-36 shrink-0 overflow-hidden bg-muted shadow-2xl sm:size-48", round ? "rounded-full" : "rounded-xl")}>
