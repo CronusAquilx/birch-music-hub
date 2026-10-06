@@ -8,6 +8,8 @@ import { authenticateRequest } from "@/lib/astra/api-user.server";
 const NULL_BODY = new Set([101, 103, 204, 205, 304]);
 const DROP_REQ = new Set(["host", "connection", "content-length", "accept-encoding", "transfer-encoding", "upgrade", "keep-alive", "proxy-connection", "te", "trailer"]);
 const DROP_RES = new Set(["content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive", "content-security-policy", "content-security-policy-report-only", "x-frame-options", "cross-origin-opener-policy", "cross-origin-embedder-policy", "cross-origin-resource-policy"]);
+// Big stylesheets sometimes fail on first load inside the proxy; retry any that didn't apply.
+const RETRY_CSS = "(function(){function f(){document.querySelectorAll('link[rel=stylesheet]').forEach(function(l){if(!l.sheet&&!l.dataset.r){l.dataset.r='1';var n=l.cloneNode();n.dataset.r='1';l.after(n);}});}addEventListener('load',function(){f();setTimeout(f,3000);setTimeout(f,8000);});})();";
 const tokenCache = new Map<string, number>();
 
 function blockedHost(host: string) {
@@ -76,7 +78,8 @@ async function handle(request: Request) {
   let upBody: ReadableStream<Uint8Array> | null = NULL_BODY.has(upstream.status) || method === "HEAD" ? null : upstream.body;
   // The proxy rewrites scripts/styles, so integrity hashes would block them (Discord loads unstyled).
   if (upBody && /text\/html/i.test(upstream.headers.get("content-type") ?? "")) {
-    const html = (await upstream.text()).replace(/\s(integrity|nonce|crossorigin)=("[^"]*"|'[^']*')/gi, "");
+    const html = (await upstream.text()).replace(/\s(integrity|nonce|crossorigin)=("[^"]*"|'[^']*')/gi, "")
+      .replace(/<\/head>/i, `<script>${RETRY_CSS}</script></head>`);
     upBody = new Response(html).body;
   }
   const stream = new ReadableStream<Uint8Array>({
