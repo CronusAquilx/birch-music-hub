@@ -55,7 +55,7 @@ async function handle(request: Request) {
     if (typeof k !== "string" || typeof v !== "string" || DROP_REQ.has(k.toLowerCase())) continue;
     try { headers.set(k, v); } catch { /* invalid header */ }
   }
-  const body = method === "GET" || method === "HEAD" || !reqBody?.length ? null : reqBody;
+  const body = method === "GET" || method === "HEAD" || !reqBody?.length ? null : reqBody.slice().buffer;
 
   let upstream: Response;
   try {
