@@ -200,12 +200,10 @@ export const STREAMING_SERVERS: StreamingServer[] = [
 
 
 export const DOWNLOAD_PROVIDERS = [
-  { id: 'rgshows', name: 'RGShows', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://db.rgshows.me/tv/${id}/${s}/${e}` : `https://db.rgshows.me/${type}/${id}` },
-  { id: 'dl-vidsrc', name: 'VidSrc DL', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://dl.vidsrc.vip/tv/${id}/${s}/${e}` : `https://dl.vidsrc.vip/${type}/${id}` },
-  { id: 'dl-embedsu', name: 'EmbedSu DL', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://dl.embed.su/tv/${id}/${s}/${e}` : `https://dl.embed.su/${type}/${id}` },
+  { id: 'vidfast', name: 'VidFast', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://vidfast.pro/tv/${id}/${s}/${e}` : `https://vidfast.pro/${type}/${id}` },
+  { id: 'vidlink', name: 'VidLink', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/${type}/${id}` },
+  { id: 'vidsrcto', name: 'VidSrc', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://vidsrc.to/embed/tv/${id}/${s}/${e}` : `https://vidsrc.to/embed/${type}/${id}` },
   { id: 'fmovies', name: 'FMovies', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://fmovies.ps/tv/${id}/${s}/${e}` : `https://fmovies.ps/${type}/${id}` },
-  { id: 'dl-autoembed', name: 'AutoEmbed DL', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://autoembed.co/download/tv/tmdb/${id}-${s}-${e}` : `https://autoembed.co/download/${type}/tmdb/${id}` },
-  { id: 'dl-moviesapi', name: 'MoviesAPI DL', url: (id: number, type: string, s?: number, e?: number) => type === 'tv' && s && e ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/${type}/${id}` },
 ] as const;
 
 export const GENRES: Record<number, string> = {
