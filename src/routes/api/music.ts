@@ -189,14 +189,20 @@ async function handle({ request }: { request: Request }) {
     case "download": {
       const want: Want = { title: url.searchParams.get("title") || q, artist: url.searchParams.get("artist") ?? "", duration: Number(url.searchParams.get("duration") ?? 0) || 0 };
       const preview = url.searchParams.get("preview") ?? "";
-      let src: string | null = null;
-      try {
-        if (/^https:\/\/[a-z0-9-]+\.dzcdn\.net\//i.test(preview)) src = preview;
-        else for (const sv of ["soundcloud", "audius"]) { src = await resolveAudio(sv, want, ""); if (src) break; }
-      } catch { /* ignore */ }
-      if (!src) return new Response("No downloadable version found", { status: 404 });
-      const r = await fetch(src, { headers: UA, redirect: "follow" });
-      if (!r.ok) return new Response("Download failed", { status: 502 });
+      // Try the Deezer preview first, then fall back to the other catalog servers.
+      const candidates: string[] = [];
+      if (/^https:\/\/[a-z0-9-]+\.dzcdn\.net\//i.test(preview)) candidates.push(preview);
+      for (const sv of ["soundcloud", "audius"]) {
+        try { const u = await resolveAudio(sv, want, ""); if (u) candidates.push(u); } catch { /* ignore */ }
+      }
+      let r: Response | null = null;
+      for (const src of candidates) {
+        try {
+          const res = await fetch(src, { headers: UA, redirect: "follow" });
+          if (res.ok && res.body) { r = res; break; }
+        } catch { /* try next */ }
+      }
+      if (!r) return new Response("No downloadable version found", { status: 404 });
       const fname = `${want.artist} - ${want.title}`.replace(/[\\/:*?"<>|]/g, "").slice(0, 100).trim() || "song";
       return new Response(r.body, { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "audio/mpeg", "content-disposition": `attachment; filename="${fname}.mp3"`, "cache-control": "private, no-store" } });
     }
