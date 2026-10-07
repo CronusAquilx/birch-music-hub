@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, ListPlus, Loader2, Mic2, Music2, Play, Plus, Search, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeft, Check, Download, ListPlus, Loader2, Mic2, Music2, Play, Plus, Search, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileMenuButton } from "@/components/astra/AppShell";
 import { RoomButton } from "@/components/RoomButton";
 import { getRoom, myRoomId, setRoomState, useRoom } from "@/lib/rooms";
-import { artUrl, getAudio, musicApi, musicToken, playList, SERVERS, setServer, usePlayer, type Server, type Track } from "@/lib/music/player";
+import { artUrl, downloadUrl, getAudio, musicApi, musicToken, playList, SERVERS, setServer, usePlayer, type Server, type Track } from "@/lib/music/player";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -37,7 +37,9 @@ function Music() {
   const [stack, setStack] = useState<View[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [lyrics, setLyrics] = useState<{ text: string; synced: string } | null>(null);
+  const [lyricsBusy, setLyricsBusy] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [featured, setFeatured] = useState<Pl[]>([]);
   const [mine, setMine] = useState<Mine[]>([]);
@@ -87,7 +89,6 @@ function Music() {
   const room = useRoom("music");
   function play(list: Track[], i: number) {
     if (getRoom("music")) setRoomState("music", { music: { queue: list.slice(0, 100), cur: i, server: player.server, paused: false, t: 0 } });
-    setLyrics(null);
     return playList(list, i);
   }
   const seenV = useRef(0);
@@ -154,13 +155,22 @@ function Music() {
     setAiBusy(false);
   }
 
-  async function showLyrics() {
-    if (!track) return;
-    if (lyrics !== null) return setLyrics(null);
-    setLyrics("Loading…");
-    const r = await musicApi<{ lyrics: string }>({ op: "lyrics", q: track.title, artist: track.artist }).catch(() => ({ lyrics: "" }));
-    setLyrics(r.lyrics || "No lyrics found.");
-  }
+  function toggleLyrics() { if (track) setLyricsOpen((v) => !v); }
+
+  // While the lyrics panel is open, fetch the words for the current song and refresh when it changes.
+  const lyricTrackId = track?.id;
+  useEffect(() => {
+    if (!lyricsOpen || !track) return;
+    let dead = false;
+    setLyricsBusy(true);
+    setLyrics(null);
+    musicApi<{ lyrics: string; synced?: string }>({ op: "lyrics", q: track.title, artist: track.artist })
+      .then((r) => { if (!dead) setLyrics({ text: r.lyrics || "", synced: r.synced ?? "" }); })
+      .catch(() => { if (!dead) setLyrics(null); })
+      .finally(() => { if (!dead) setLyricsBusy(false); });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lyricsOpen, lyricTrackId]);
 
   const AddMenu = ({ t }: { t: Track }) => (
     <DropdownMenu>
