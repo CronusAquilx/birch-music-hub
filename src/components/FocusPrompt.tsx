@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Bot, Film, Gamepad2, Globe, LayoutGrid, Music } from "lucide-react";
+import { Bot, Film, Gamepad2, Globe, LayoutGrid, Monitor, Music, Smartphone, Tablet } from "lucide-react";
 import { setPrefs, type Prefs } from "@/lib/astra/prefs";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -32,6 +32,42 @@ export function FocusPrompt() {
               <o.icon className="size-6 text-primary" />
               <div className="mt-3 font-medium">{o.label}</div>
               <div className="text-xs text-muted-foreground">{o.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const DEVICES = [
+  { id: "desktop", label: "Laptop / desktop", desc: "Full layout with sidebar", icon: Monitor },
+  { id: "tablet", label: "Tablet", desc: "Bigger touch targets, lighter effects", icon: Tablet },
+  { id: "phone", label: "Phone", desc: "Fast, simple, no heavy effects", icon: Smartphone },
+] as const;
+
+function guessDevice(): Prefs["device"] {
+  if (typeof window === "undefined") return "desktop";
+  const touch = window.matchMedia("(pointer: coarse)").matches;
+  if (!touch) return "desktop";
+  return Math.min(window.innerWidth, window.innerHeight) < 600 ? "phone" : "tablet";
+}
+
+/** First-boot question: which device? Tunes the app for it. */
+export function DevicePrompt() {
+  const guess = guessDevice();
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/95 p-4">
+      <div className="w-full max-w-2xl">
+        <h1 className="text-center font-display text-3xl sm:text-4xl">What are you on?</h1>
+        <p className="mt-2 text-center text-sm text-muted-foreground">We'll make everything fit and run smoothly. Change it anytime in Settings.</p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {DEVICES.map((d) => (
+            <button key={d.id} onClick={() => setPrefs({ device: d.id })} className="focus-option relative rounded-2xl p-4 text-left">
+              <d.icon className="size-6 text-primary" />
+              <div className="mt-3 font-medium">{d.label}</div>
+              <div className="text-xs text-muted-foreground">{d.desc}</div>
+              {guess === d.id && <span className="absolute right-3 top-3 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">Looks like this</span>}
             </button>
           ))}
         </div>

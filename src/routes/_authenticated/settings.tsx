@@ -222,6 +222,13 @@ function Appearance({ p, set }: { p: Prefs; set: (x: Partial<Prefs>) => void }) 
             ))}
           </div>
         </Row>
+        <Row title="Device">
+          <div className="flex flex-wrap gap-2">
+            {(["desktop", "tablet", "phone"] as const).map((d) => (
+              <button key={d} onClick={() => set({ device: d })} className={cn("rounded-md border px-3 py-1.5 text-sm capitalize", p.device === d ? "border-star bg-accent" : "hover:bg-accent/50")}>{d === "desktop" ? "Laptop / desktop" : d}</button>
+            ))}
+          </div>
+        </Row>
       </Card>
       <BackgroundCard />
       <Card title="Theme">
