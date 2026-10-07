@@ -168,9 +168,37 @@ async function handle({ request }: { request: Request }) {
     }
     case "lyrics": {
       const artist = url.searchParams.get("artist") ?? "";
-      const r = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${q}`).catch(() => null);
-      const d: any = r?.ok ? await r.json().catch(() => ({})) : {};
-      return json({ lyrics: d.lyrics ?? "" }, 86400);
+      let text = "", synced = "";
+      try {
+        const lr = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${q}`, { headers: { "user-agent": "BirchBlock/1.0" } });
+        if (lr.ok) { const d: any = await lr.json(); text = d.plainLyrics ?? ""; synced = d.syncedLyrics ?? ""; }
+      } catch { /* fall through */ }
+      if (!text && !synced) {
+        try {
+          const ls = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${q}`, { headers: { "user-agent": "BirchBlock/1.0" } });
+          if (ls.ok) { const arr: any[] = await ls.json(); const hit = arr.find((x) => x.plainLyrics || x.syncedLyrics); if (hit) { text = hit.plainLyrics ?? ""; synced = hit.syncedLyrics ?? ""; } }
+        } catch { /* fall through */ }
+      }
+      if (!text && !synced) {
+        const r = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${q}`).catch(() => null);
+        const d: any = r?.ok ? await r.json().catch(() => ({})) : {};
+        text = String(d.lyrics ?? "").trim();
+      }
+      return json({ lyrics: text, synced }, 86400);
+    }
+    case "download": {
+      const want: Want = { title: url.searchParams.get("title") || q, artist: url.searchParams.get("artist") ?? "", duration: Number(url.searchParams.get("duration") ?? 0) || 0 };
+      const preview = url.searchParams.get("preview") ?? "";
+      let src: string | null = null;
+      try {
+        if (/^https:\/\/[a-z0-9-]+\.dzcdn\.net\//i.test(preview)) src = preview;
+        else for (const sv of ["soundcloud", "audius"]) { src = await resolveAudio(sv, want, ""); if (src) break; }
+      } catch { /* ignore */ }
+      if (!src) return new Response("No downloadable version found", { status: 404 });
+      const r = await fetch(src, { headers: UA, redirect: "follow" });
+      if (!r.ok) return new Response("Download failed", { status: 502 });
+      const fname = `${want.artist} - ${want.title}`.replace(/[\\/:*?"<>|]/g, "").slice(0, 100).trim() || "song";
+      return new Response(r.body, { status: r.status, headers: { "content-type": r.headers.get("content-type") ?? "audio/mpeg", "content-disposition": `attachment; filename="${fname}.mp3"`, "cache-control": "private, no-store" } });
     }
     case "video": {
       const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=8&videoEmbeddable=true&q=${q}&key=${YT_KEY}`);

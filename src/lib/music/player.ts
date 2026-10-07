@@ -41,6 +41,12 @@ export async function musicApi<T>(params: Record<string, string>): Promise<T> {
   return res.json();
 }
 
+/** Direct download link for a track, streamed through Astra's server. */
+export function downloadUrl(t: Track) {
+  const p = new URLSearchParams({ op: "download", title: t.title, artist: t.artist, duration: String(t.duration || 0), ...(t.preview ? { preview: t.preview } : {}) });
+  return `/api/music?${p.toString()}&token=${encodeURIComponent(token)}`;
+}
+
 function ensure() {
   if (typeof document === "undefined") return;
   if (!audio) {
