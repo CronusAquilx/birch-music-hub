@@ -5,6 +5,7 @@ export type Prefs = {
   accent: "star" | "rose" | "ember" | "mint" | "sky" | "violet" | "lime" | "gold" | "coral" | "aqua";
   palette: "default" | "midnight" | "forest" | "ocean" | "sunset" | "mono" | "candy" | "dracula" | "nord" | "cyberpunk" | "coffee" | "sakura" | "matrix" | "arctic" | "lava" | "royal" | "synthwave" | "paper" | "mint" | "galaxy";
   focus: "" | "all" | "music" | "movies" | "web" | "games" | "ai";
+  device: "" | "desktop" | "tablet" | "phone";
   customBg: string;
   customBgDim: number;
   v?: number;
@@ -34,6 +35,7 @@ export type Prefs = {
 export const DEFAULT_PREFS: Prefs = {
   layout: "classic",
   focus: "",
+  device: "",
   customBg: "",
   customBgDim: 55,
   accent: "star",
@@ -130,7 +132,8 @@ function apply() {
   r.dataset["density"] = state.density;
   if (state.customBg) { r.style.setProperty("--custom-bg", `url("${state.customBg.replace(/"/g, "%22")}")`); r.style.setProperty("--custom-bg-dim", `${state.customBgDim}%`); r.dataset["custombg"] = "on"; }
   else { r.style.removeProperty("--custom-bg"); delete r.dataset["custombg"]; }
-  r.classList.toggle("reduce-motion", state.reduceMotion);
+  if (state.device) r.dataset["device"] = state.device; else delete r.dataset["device"];
+  r.classList.toggle("reduce-motion", state.reduceMotion || state.device === "phone");
   document.title = state.tabCloak ? state.cloakTitle : document.title;
 }
 

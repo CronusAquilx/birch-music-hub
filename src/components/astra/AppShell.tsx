@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams, useRouter, useRouterState } from "@tanstack/react-router";
 import { RoomFollower } from "@/components/RoomFollower";
 import { NowPlayingBar } from "@/components/music/NowPlayingBar";
-import { FocusPrompt } from "@/components/FocusPrompt";
+import { FocusPrompt, DevicePrompt } from "@/components/FocusPrompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Bot, Brain, Film, Gamepad2, Globe, AudioLines, Home, Lock, LogOut, Maximize, Music, Shield, Menu, MessageSquare, Plus, RotateCw, Search, Settings, Trash2 } from "lucide-react";
@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NowPlayingBar />
         </main>
       </div>
-      {prefs.focus === "" && <FocusPrompt />}
+      {prefs.device === "" ? <DevicePrompt /> : prefs.focus === "" && <FocusPrompt />}
       <CommandMenu open={cmdOpen} onOpenChange={setCmdOpen} />
     </ShellCtx.Provider>
   );
