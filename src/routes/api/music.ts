@@ -192,11 +192,13 @@ async function handle({ request }: { request: Request }) {
       // Try the Deezer preview first, then fall back to the other catalog servers.
       const candidates: string[] = [];
       if (/^https:\/\/[a-z0-9-]+\.dzcdn\.net\//i.test(preview)) candidates.push(preview);
-      for (const sv of ["soundcloud", "audius"]) {
-        try { const u = await resolveAudio(sv, want, ""); if (u) candidates.push(u); } catch { /* ignore */ }
-      }
       let r: Response | null = null;
-      for (const src of candidates) {
+      for (let i = 0; i < 3 && !r; i++) {
+        if (i === 1) for (const sv of ["soundcloud", "audius"]) {
+          try { const u = await resolveAudio(sv, want, ""); if (u) candidates.push(u); } catch { /* ignore */ }
+        }
+        const src = candidates[i];
+        if (!src) continue;
         try {
           const res = await fetch(src, { headers: UA, redirect: "follow" });
           if (res.ok && res.body) { r = res; break; }
