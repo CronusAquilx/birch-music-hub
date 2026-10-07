@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, ListPlus, Loader2, Mic2, Music2, Play, Plus, Search, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeft, Check, Download, ListPlus, Loader2, Mic2, Music2, Play, Plus, Search, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileMenuButton } from "@/components/astra/AppShell";
 import { RoomButton } from "@/components/RoomButton";
 import { getRoom, myRoomId, setRoomState, useRoom } from "@/lib/rooms";
-import { artUrl, getAudio, musicApi, musicToken, playList, SERVERS, setServer, usePlayer, type Server, type Track } from "@/lib/music/player";
+import { artUrl, downloadUrl, getAudio, musicApi, musicToken, playList, SERVERS, setServer, usePlayer, type Server, type Track } from "@/lib/music/player";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -37,7 +37,9 @@ function Music() {
   const [stack, setStack] = useState<View[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [lyrics, setLyrics] = useState<{ text: string; synced: string } | null>(null);
+  const [lyricsBusy, setLyricsBusy] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [featured, setFeatured] = useState<Pl[]>([]);
   const [mine, setMine] = useState<Mine[]>([]);
@@ -87,7 +89,6 @@ function Music() {
   const room = useRoom("music");
   function play(list: Track[], i: number) {
     if (getRoom("music")) setRoomState("music", { music: { queue: list.slice(0, 100), cur: i, server: player.server, paused: false, t: 0 } });
-    setLyrics(null);
     return playList(list, i);
   }
   const seenV = useRef(0);
@@ -154,13 +155,22 @@ function Music() {
     setAiBusy(false);
   }
 
-  async function showLyrics() {
-    if (!track) return;
-    if (lyrics !== null) return setLyrics(null);
-    setLyrics("Loading…");
-    const r = await musicApi<{ lyrics: string }>({ op: "lyrics", q: track.title, artist: track.artist }).catch(() => ({ lyrics: "" }));
-    setLyrics(r.lyrics || "No lyrics found.");
-  }
+  function toggleLyrics() { if (track) setLyricsOpen((v) => !v); }
+
+  // While the lyrics panel is open, fetch the words for the current song and refresh when it changes.
+  const lyricTrackId = track?.id;
+  useEffect(() => {
+    if (!lyricsOpen || !track) return;
+    let dead = false;
+    setLyricsBusy(true);
+    setLyrics(null);
+    musicApi<{ lyrics: string; synced?: string }>({ op: "lyrics", q: track.title, artist: track.artist })
+      .then((r) => { if (!dead) setLyrics({ text: r.lyrics || "", synced: r.synced ?? "" }); })
+      .catch(() => { if (!dead) setLyrics(null); })
+      .finally(() => { if (!dead) setLyricsBusy(false); });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lyricsOpen, lyricTrackId]);
 
   const AddMenu = ({ t }: { t: Track }) => (
     <DropdownMenu>
@@ -170,6 +180,8 @@ function Music() {
         {mine.map((p) => <DropdownMenuItem key={p.id} onClick={() => addTo(p, t)}>{p.name}{p.tracks.some((x) => x.id === t.id) && <Check className="ml-auto size-3.5" />}</DropdownMenuItem>)}
         {mine.length > 0 && <DropdownMenuSeparator />}
         <DropdownMenuItem onClick={() => newPlaylistPrompt(t)}><Plus className="size-3.5" /> New playlist</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild><a href={downloadUrl(t)} download><Download className="size-3.5" /> Download</a></DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -243,7 +255,7 @@ function Music() {
           <Search className="size-4 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search songs, albums, artists" className="w-full bg-transparent text-sm outline-none" />
         </form>
-        {track && <button onClick={showLyrics} className={cn("rounded-md p-2 hover:bg-accent", lyrics !== null && "bg-accent")} aria-label="Lyrics"><Mic2 className="size-4" /></button>}
+        {track && <button onClick={toggleLyrics} className={cn("rounded-md p-2 hover:bg-accent", lyricsOpen && "bg-accent")} aria-label="Lyrics"><Mic2 className="size-4" /></button>}
         <RoomButton kind="music" />
         <select value={player.server} onChange={(e) => setServer(e.target.value as Server)} aria-label="Music source" className="hidden rounded-md border bg-card px-2 py-1.5 text-sm sm:block">
           {SERVERS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
@@ -253,7 +265,16 @@ function Music() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl px-4 py-6">
           {error && <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">{error} <button onClick={() => location.reload()} className="ml-2 underline">Retry</button></div>}
-          {lyrics !== null && <pre className="music-panel mb-6 max-h-96 overflow-y-auto whitespace-pre-wrap rounded-xl p-4 font-sans text-sm leading-relaxed">{lyrics}</pre>}
+          {lyricsOpen && track && <section className="music-panel mb-6 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="label-mono flex shrink-0 items-center gap-1.5"><Mic2 className="size-3.5" /> Lyrics</div>
+              <span className="truncate text-xs text-muted-foreground">{track.artist} · {track.title}</span>
+            </div>
+            {lyricsBusy ? <p className="mt-3 text-sm text-muted-foreground">Looking up lyrics…</p>
+              : lyrics?.synced ? <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed">{lyrics.synced.replace(/\[\d{1,2}:\d{1,2}(?:\.\d+)?\]/g, "")}</pre>
+              : lyrics?.text ? <pre className="mt-3 max-h-80 overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed">{lyrics.text}</pre>
+              : <p className="mt-3 text-sm text-muted-foreground">No lyrics found for this song.</p>}
+          </section>}
           {loading && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading…</p>}
 
           {!loading && view?.kind === "home" && <>

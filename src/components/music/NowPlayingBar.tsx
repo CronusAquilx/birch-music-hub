@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ListMusic, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
-import { artUrl, next, prev, seek, setPlayerPrefs, setVolume, stop, toggle, usePlayer } from "@/lib/music/player";
+import { Download, ListMusic, Pause, Play, SkipBack, SkipForward, Volume2, X } from "lucide-react";
+import { artUrl, downloadUrl, next, prev, seek, setPlayerPrefs, setVolume, stop, toggle, usePlayer } from "@/lib/music/player";
 import { usePrefs } from "@/lib/astra/prefs";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ export function NowPlayingBar() {
             <input type="range" min={0} max={1} step={0.05} value={p.volume} onChange={(e) => setVolume(Number(e.target.value))} aria-label="Volume" className="music-range w-20" />
           </label>
         )}
+        <a href={downloadUrl(t)} download className="hidden rounded-md p-2 hover:bg-accent sm:block" aria-label="Download song"><Download className="size-4" /></a>
         <Link to="/music" className="hidden rounded-md p-2 hover:bg-accent sm:block" aria-label="Open music"><ListMusic className="size-4" /></Link>
         <button onClick={stop} className="rounded-md p-2 hover:bg-accent" aria-label="Stop"><X className="size-4" /></button>
       </div>
