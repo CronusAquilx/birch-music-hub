@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Check, Play, Plus, Share2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Check, Download, Play, Plus, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import ContentRow from "@/components/movies/ContentRow";
 import { useMovieDetail, useTVDetail } from "@/lib/movies/hooks";
-import { backdrop, img } from "@/lib/movies/tmdb";
+import { backdrop, DOWNLOAD_PROVIDERS, img } from "@/lib/movies/tmdb";
 import { useWatchlist } from "@/lib/movies/watchlist";
 
 export const Route = createFileRoute("/_authenticated/movies/title/$type/$id")({
@@ -19,6 +20,7 @@ function Detail() {
   const tv = useTVDetail(isTV ? n : 0);
   const d = isTV ? tv.data : movie.data;
   const wl = useWatchlist();
+  const [downloadsOpen, setDownloadsOpen] = useState(false);
   const saved = wl.isInWatchlist(n, type);
   if (!d) return <div className="h-full animate-pulse bg-muted" />;
   const title = d.title || d.name || "Untitled";
@@ -63,6 +65,14 @@ function Detail() {
               >
                 <Share2 className="size-4" /> Share
               </button>
+              <div className="relative">
+                <button onClick={() => setDownloadsOpen((v) => !v)} className="inline-flex items-center gap-2 rounded-md border border-border bg-background/60 px-4 py-2 text-sm">
+                  <Download className="size-4" /> Download
+                </button>
+                {downloadsOpen && <div className="absolute left-0 top-full z-30 mt-1 min-w-48 rounded-md border border-border bg-popover p-1 shadow-xl">
+                  {DOWNLOAD_PROVIDERS.map((provider) => <a key={provider.id} href={provider.url(n, type)} target="_blank" rel="noreferrer" className="block rounded px-3 py-2 text-sm hover:bg-accent">{provider.name}</a>)}
+                </div>}
+              </div>
             </div>
           </div>
         </div>
